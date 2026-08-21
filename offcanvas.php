@@ -184,7 +184,7 @@ if (!empty($fullItemsRaw)) {
                     -->
                     <form action="<?php echo Route::_($linkCheckout); ?>"
                           method="post"
-                          class="ph-cart-remove-form">
+                          class="ph-cart-remove-form phItemCartUpdateBoxForm">
                         <input type="hidden" name="id"        value="<?php echo $productId; ?>">
                         <input type="hidden" name="catid"     value="<?php echo $catid; ?>">
                         <input type="hidden" name="idkey"     value="<?php echo htmlspecialchars($idkey); ?>">
@@ -241,7 +241,37 @@ if (!empty($fullItemsRaw)) {
 
             <?php endif; ?>
 
-        </div>{module title="Upsell"}<!-- /.offcanvas-body -->
+        </div><!-- /.offcanvas-body -->
     </div><!-- /.offcanvas -->
 
 </div><!-- /.ph-cart-module-box -->
+
+<script>
+jQuery(document).ready(function () {
+
+    // Kada Phoca Cart AJAX ažurira cart count (add to cart), osvježavamo offcanvas body
+    function lxRefreshOffcanvasCart() {
+        fetch(window.location.href)
+            .then(function (response) { return response.text(); })
+            .then(function (html) {
+                var parser  = new DOMParser();
+                var doc     = parser.parseFromString(html, 'text/html');
+                var newBody = doc.querySelector('#phItemCartBoxOffCanvas .offcanvas-body');
+                var curBody = document.querySelector('#phItemCartBoxOffCanvas .offcanvas-body');
+                if (newBody && curBody) {
+                    curBody.innerHTML = newBody.innerHTML;
+                }
+            })
+            .catch(function () {});
+    }
+
+    var countEl = document.getElementById('phItemCartBoxCount');
+    if (countEl) {
+        var lxCartObserver = new MutationObserver(function () {
+            lxRefreshOffcanvasCart();
+        });
+        lxCartObserver.observe(countEl, { childList: true, subtree: true, characterData: true });
+    }
+
+});
+</script>
