@@ -241,7 +241,7 @@ if (!empty($fullItemsRaw)) {
 
             <?php endif; ?>
 
-        </div><!-- /.offcanvas-body -->
+        </div>{module title="Upsell"}<!-- /.offcanvas-body -->
     </div><!-- /.offcanvas -->
 
 </div><!-- /.ph-cart-module-box -->
@@ -249,7 +249,7 @@ if (!empty($fullItemsRaw)) {
 <script>
 jQuery(document).ready(function () {
 
-    // Kada Phoca Cart AJAX ažurira cart count (add to cart), osvježavamo offcanvas body
+    // Kada Phoca Cart AJAX ažurira cart count, osvježavamo offcanvas body
     function lxRefreshOffcanvasCart() {
         fetch(window.location.href)
             .then(function (response) { return response.text(); })
@@ -265,6 +265,7 @@ jQuery(document).ready(function () {
             .catch(function () {});
     }
 
+    // MutationObserver — osvježava offcanvas kada Phoca Cart AJAX ažurira count
     var countEl = document.getElementById('phItemCartBoxCount');
     if (countEl) {
         var lxCartObserver = new MutationObserver(function () {
@@ -272,6 +273,42 @@ jQuery(document).ready(function () {
         });
         lxCartObserver.observe(countEl, { childList: true, subtree: true, characterData: true });
     }
+
+    // AJAX brisanje — intercept delete submit
+    jQuery(document).on('click', '#phItemCartBoxOffCanvas .ph-cart-remove-btn', function (e) {
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        var $btn  = jQuery(this);
+        var $form = $btn.closest('form.phItemCartUpdateBoxForm');
+        var $item = $btn.closest('.ph-cart-offcanvas-item');
+
+        $item.css({ opacity: 0.4, pointerEvents: 'none' });
+
+        var formData = $form.serialize() + '&action=delete';
+
+        if (typeof phDoSubmitFormUpdateCart === 'function') {
+            phDoSubmitFormUpdateCart(formData);
+        } else {
+            // Uzmi URL iz forme ali dodaj tmpl=component da izbjegnemo redirect
+            var actionUrl = $form.attr('action');
+            // Ukloni eventualni tmpl parametar i dodaj component
+            actionUrl = actionUrl.replace(/[?&]tmpl=[^&]*/g, '');
+            actionUrl += (actionUrl.indexOf('?') >= 0 ? '&' : '?') + 'tmpl=component';
+
+            jQuery.ajax({
+                url: actionUrl,
+                type: 'POST',
+                data: formData,
+                complete: function () {
+                    lxRefreshOffcanvasCart();
+                }
+            });
+        }
+
+        return false;
+    });
 
 });
 </script>
