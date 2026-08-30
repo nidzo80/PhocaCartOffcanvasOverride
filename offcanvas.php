@@ -241,7 +241,7 @@ if (!empty($fullItemsRaw)) {
 
             <?php endif; ?>
 
-        </div>{module title="Upsell"}<!-- /.offcanvas-body -->
+        </div><!-- /.offcanvas-body -->
     </div><!-- /.offcanvas -->
 
 </div><!-- /.ph-cart-module-box -->
