@@ -241,74 +241,84 @@ if (!empty($fullItemsRaw)) {
 
             <?php endif; ?>
 
-        </div><!-- /.offcanvas-body -->
+        </div>{module title="Upsell"}<!-- /.offcanvas-body -->
     </div><!-- /.offcanvas -->
 
 </div><!-- /.ph-cart-module-box -->
 
 <script>
-jQuery(document).ready(function () {
+(function () {
+    // ── Globalna unified refresh — definišemo samo jednom ────────────
+    if (typeof window.lxRefreshAllCarts === 'undefined') {
+        window.lxRefreshAllCarts = function () {
+            fetch(window.location.href)
+                .then(function (r) { return r.text(); })
+                .then(function (html) {
+                    var parser = new DOMParser();
+                    var doc    = parser.parseFromString(html, 'text/html');
 
-    // Kada Phoca Cart AJAX ažurira cart count, osvježavamo offcanvas body
-    function lxRefreshOffcanvasCart() {
-        fetch(window.location.href)
-            .then(function (response) { return response.text(); })
-            .then(function (html) {
-                var parser  = new DOMParser();
-                var doc     = parser.parseFromString(html, 'text/html');
-                var newBody = doc.querySelector('#phItemCartBoxOffCanvas .offcanvas-body');
-                var curBody = document.querySelector('#phItemCartBoxOffCanvas .offcanvas-body');
-                if (newBody && curBody) {
-                    curBody.innerHTML = newBody.innerHTML;
-                }
-            })
-            .catch(function () {});
+                    // Offcanvas body
+                    var newOC = doc.querySelector('#phItemCartBoxOffCanvas .offcanvas-body');
+                    var curOC = document.querySelector('#phItemCartBoxOffCanvas .offcanvas-body');
+                    if (newOC && curOC) { curOC.innerHTML = newOC.innerHTML; }
+
+                    // Default cart modul
+                    var newDef = doc.querySelector('#lxCartModuleWrap');
+                    var curDef = document.getElementById('lxCartModuleWrap');
+                    if (newDef && curDef) { curDef.innerHTML = newDef.innerHTML; }
+
+                    // Count na offcanvas dugmetu (sup badge)
+                    var newCount = doc.querySelector('#phItemCartBoxCount');
+                    var curCount = document.getElementById('phItemCartBoxCount');
+                    if (newCount && curCount) { curCount.innerHTML = newCount.innerHTML; }
+
+                    // Total
+                    document.querySelectorAll('.phItemCartBoxTotal').forEach(function (el, i) {
+                        var newEl = doc.querySelectorAll('.phItemCartBoxTotal')[i];
+                        if (newEl) { el.innerHTML = newEl.innerHTML; }
+                    });
+                })
+                .catch(function () {});
+        };
     }
 
-    // MutationObserver — osvježava offcanvas kada Phoca Cart AJAX ažurira count
-    var countEl = document.getElementById('phItemCartBoxCount');
-    if (countEl) {
-        var lxCartObserver = new MutationObserver(function () {
-            lxRefreshOffcanvasCart();
-        });
-        lxCartObserver.observe(countEl, { childList: true, subtree: true, characterData: true });
-    }
+    jQuery(document).ready(function () {
 
-    // AJAX brisanje — intercept delete submit
-    jQuery(document).on('click', '#phItemCartBoxOffCanvas .ph-cart-remove-btn', function (e) {
-
-        e.preventDefault();
-        e.stopPropagation();
-
-        var $btn  = jQuery(this);
-        var $form = $btn.closest('form.phItemCartUpdateBoxForm');
-        var $item = $btn.closest('.ph-cart-offcanvas-item');
-
-        $item.css({ opacity: 0.4, pointerEvents: 'none' });
-
-        var formData = $form.serialize() + '&action=delete';
-
-        if (typeof phDoSubmitFormUpdateCart === 'function') {
-            phDoSubmitFormUpdateCart(formData);
-        } else {
-            // Uzmi URL iz forme ali dodaj tmpl=component da izbjegnemo redirect
-            var actionUrl = $form.attr('action');
-            // Ukloni eventualni tmpl parametar i dodaj component
-            actionUrl = actionUrl.replace(/[?&]tmpl=[^&]*/g, '');
-            actionUrl += (actionUrl.indexOf('?') >= 0 ? '&' : '?') + 'tmpl=component';
-
-            jQuery.ajax({
-                url: actionUrl,
-                type: 'POST',
-                data: formData,
-                complete: function () {
-                    lxRefreshOffcanvasCart();
-                }
-            });
+        // MutationObserver na count badge — okida nakon Phoca Cart AJAX add
+        var countEl = document.getElementById('phItemCartBoxCount');
+        if (countEl && !countEl.dataset.lxObserved) {
+            countEl.dataset.lxObserved = '1';
+            new MutationObserver(function () {
+                setTimeout(function () {
+                    window.lxRefreshAllCarts();
+                }, 600);
+            }).observe(countEl, { childList: true, subtree: true, characterData: true });
         }
 
-        return false;
-    });
+        // AJAX brisanje iz offcanvasa
+        jQuery(document).on('click', '#phItemCartBoxOffCanvas .ph-cart-remove-btn', function (e) {
+            e.preventDefault();
+            e.stopPropagation();
 
-});
+            var $form    = jQuery(this).closest('form.phItemCartUpdateBoxForm');
+            var $item    = jQuery(this).closest('.ph-cart-offcanvas-item');
+            $item.css({ opacity: 0.4, pointerEvents: 'none' });
+
+            var formData  = $form.serialize() + '&action=delete';
+            var actionUrl = $form.attr('action').replace(/[?&]tmpl=[^&]*/g, '');
+            actionUrl    += (actionUrl.indexOf('?') >= 0 ? '&' : '?') + 'tmpl=component';
+
+            if (typeof phDoSubmitFormUpdateCart === 'function') {
+                phDoSubmitFormUpdateCart(formData);
+            } else {
+                jQuery.ajax({
+                    url: actionUrl, type: 'POST', data: formData,
+                    complete: function () { window.lxRefreshAllCarts(); }
+                });
+            }
+            return false;
+        });
+
+    });
+})();
 </script>
